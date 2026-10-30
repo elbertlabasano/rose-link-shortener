@@ -13,10 +13,10 @@ Copy-Item .env.example .env # Only on a fresh checkout; preserve an existing .en
 php artisan key:generate  # Only on a fresh installation
 # Create the MySQL database and application user, then set DB_* in .env.
 php artisan migrate --seed
-php artisan serve --host=127.0.0.1 --port=8008
+php artisan serve --host=127.0.0.1 --port=8012
 ```
 
-Open `http://127.0.0.1:8008`. The existing local `.env` is already configured; do not replace it or regenerate its application key.
+Open `http://127.0.0.1:8012`. The existing local `.env` is already configured; do not replace it or regenerate its application key.
 
 The local database is **`rose_shortener`** at `127.0.0.1:3306`, using the dedicated `rose_shortener` account. XAMPP provides MariaDB 10.4, accessed through Laravel?s MySQL driver. The generated database password is stored only in the ignored `.env`. The previous `database/database.sqlite` is retained as a backup and is no longer used by the running application. Existing user profiles and SSO identity links were copied across; sign in again after switching databases.
 
@@ -34,7 +34,7 @@ KEYCLOAK_BASE_URL=https://sso.rosebakeshop.net
 KEYCLOAK_REALM=jathnier
 KEYCLOAK_CLIENT_ID=shortener
 KEYCLOAK_CLIENT_SECRET=your-client-secret
-KEYCLOAK_REDIRECT_URI=http://127.0.0.1:8008/auth/keycloak/callback
+KEYCLOAK_REDIRECT_URI=http://127.0.0.1:8012/auth/keycloak/callback
 SESSION_COOKIE=rose_shortener_session
 SESSION_SECURE_COOKIE=false
 SESSION_SAME_SITE=lax
@@ -44,7 +44,7 @@ Store the actual client secret only in `.env` or the deployment secret manager. 
 
 Configure Keycloak client **shortener** as a confidential OpenID Connect client: client authentication On, Standard flow On, implicit flow Off, direct access grants Off. Use exact allowed callbacks:
 
-- `http://127.0.0.1:8008/auth/keycloak/callback`
+- `http://127.0.0.1:8012/auth/keycloak/callback`
 - `https://sh.jathnier.com/auth/keycloak/callback`
 
 Enable S256 PKCE. Add an `idcode` user-attribute mapper returning a single **string** in UserInfo. The employee's attribute must be `20260211` for the seeded account. Employees must not be able to edit this managed attribute. No browser Web origins or post-logout redirect URI is required for this server-side flow.
@@ -123,6 +123,19 @@ php artisan view:cache
 ```
 
 DNS, server configuration, and Keycloak administration have not been changed by this implementation. Before rollout, complete real SSO sign-in and verify that a generated production short URL redirects correctly over HTTPS.
+
+### Cloudflare Tunnel on Windows
+
+Publish `sh.jathnier.com` to `http://127.0.0.1:8012`. The application trusts forwarded headers only from the loopback connection used by the tunnel, and the origin server binds only to loopback.
+
+Install the origin as a Windows startup task from an elevated PowerShell window:
+
+```powershell
+cd D:\productions\rose-link-shortener
+.\scripts\install-startup-task.ps1
+```
+
+The task is named **Rose Link Shortener**, restarts on failure, and starts immediately when installed. When the installer is elevated it runs as `SYSTEM` at computer startup. Without elevation, it installs a user-level task that runs at Windows sign-in. Cloudflared must also be installed as a Windows service or otherwise configured to start automatically.
 
 ## Verification
 
